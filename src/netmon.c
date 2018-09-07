@@ -17,7 +17,7 @@ int netmon_init()
     sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP));
     
     if(sockfd == -1) {
-        sprintf(error_msg, "Unable to open raw socket");
+        sprintf(error_msg, "Unable to open raw socket (root privelidges required)");
         return -1;
     }
 
