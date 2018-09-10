@@ -10,6 +10,7 @@ OBJS = \
 	src/errors.c	\
 	src/main.c	\
 	src/netmon.c	\
+	src/ui.c	\
 
 TARGET = netmon
 
@@ -24,6 +25,8 @@ main.o: src/main.c include/netmon.h include/errors.h
 
 netmon.o: src/netmon.c include/netmon.h include/errors.h
 
+ui.o: src/ui.c include/ui.h
+
 run: $(TARGET)
 	./$(TARGET)
 
@@ -31,4 +34,5 @@ clean:
 	rm -f src/errors.o
 	rm -f src/main.o
 	rm -f src/netmon.o
+	rm -f src/ui.o
 	rm -f $(TARGET)
