@@ -19,7 +19,6 @@
 #define MACLENGTH 17
 
 static void process_packet(char *packet_bytes, int len);
-static void print_mac_address(unsigned char *address);
 static void mac_to_string(unsigned char *ma, char *buffer);
 
 // Opens a raw socket and returns its file descriptor
@@ -109,15 +108,6 @@ static void process_packet(char *packet_bytes, int len)
         default:
             break;
     }
-}
-
-static void print_mac_address(unsigned char *address)
-{
-    for(int i = 0; i < 6; ++i) {
-        printf("%02x", address[i]);
-        if(i < 5) printf(":");
-    }
-    printf("\n");
 }
 
 static void mac_to_string(unsigned char *ma, char *buffer)
