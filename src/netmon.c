@@ -16,7 +16,7 @@
 #include <net/if.h>
 
 // The length of a macaddress
-#define MACLENGTH 15
+#define MACLENGTH 17
 
 static void process_packet(char *packet_bytes, int len);
 static void print_mac_address(unsigned char *address);
@@ -76,7 +76,8 @@ int netmon_mainloop(int sockfd)
 
 static void process_packet(char *packet_bytes, int len)
 {
-    char mac_src[MACLENGTH], mac_dest[MACLENGTH];
+    char mac_src[MACLENGTH + 1];
+    char mac_dest[MACLENGTH + 1];
     PACKET_ETH_HDR eth_hdr;
     PACKET_ARP_HDR arp_hdr;
 
@@ -106,11 +107,8 @@ static void process_packet(char *packet_bytes, int len)
             }
             break;
         default:
-            printf("unkown\n");
             break;
     }
-
-    printf("\n");
 }
 
 static void print_mac_address(unsigned char *address)
@@ -126,4 +124,5 @@ static void mac_to_string(unsigned char *ma, char *buffer)
 {
     sprintf(buffer, "%02x:%02x:%02x:%02x:%02x:%02x", 
             ma[0], ma[1], ma[2], ma[3], ma[4], ma[5]);
+    buffer[MACLENGTH] = '\0';
 }
