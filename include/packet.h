@@ -8,18 +8,21 @@
 
 // Ethernet packet header
 typedef struct __attribute__((packed)) {
-    unsigned char eth_mac_dest[6];  // The destination MAC address
-    unsigned char eth_mac_src[6];   // The source MAC address
+    unsigned char  eth_mac_dest[6]; // The destination MAC address
+    unsigned char  eth_mac_src[6];  // The source MAC address
     unsigned short eth_type;        // The type of the payload
 } PACKET_ETH_HDR;
 
+#define ARP_OPER_REQUEST 0x0001
+#define ARP_OPER_REPLY   0x0002
+
 // ARP packet header
 typedef struct __attribute__((packed)) {
-    unsigned short arp_htype;       // Specifies the link layer protocol
-    unsigned short arp_ptype;       // Specifies the protocol the ARP packet is intended for
-    unsigned char arp_hlen;         // Length of the hardware address
-    unsigned char arp_plen;         // Length of the protocol address
-    unsigned short arp_oper;        // The operation the sender is performing (request or reply)
+    unsigned short arp_htype; // Specifies the link layer protocol
+    unsigned short arp_ptype; // Specifies the protocol the ARP packet is intended for
+    unsigned char  arp_hlen;  // Length of the hardware address
+    unsigned char  arp_plen;  // Length of the protocol address
+    unsigned short arp_oper;  // The operation the sender is performing (request or reply)
 } PACKET_ARP_HDR;
 
 #endif

@@ -15,5 +15,7 @@ int main(int argc, char *argv[])
 
     if((sockfd = netmon_init(argv[1])) == -1) die(EXIT_FAILURE);
 
+    netmon_mainloop(sockfd);
+
     return EXIT_SUCCESS;
 }

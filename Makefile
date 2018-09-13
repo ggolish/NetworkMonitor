@@ -23,7 +23,7 @@ errors.o: src/errors.c include/errors.h
 
 main.o: src/main.c include/netmon.h include/errors.h
 
-netmon.o: src/netmon.c include/netmon.h include/errors.h
+netmon.o: src/netmon.c include/netmon.h include/errors.h include/packet.h
 
 ui.o: src/ui.c include/ui.h
 
