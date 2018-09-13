@@ -1,5 +1,6 @@
 #include "netmon.h"
 #include "errors.h"
+#include "ui.h"
 #include "packet.h"
 
 #include <stdio.h>
@@ -58,6 +59,8 @@ int netmon_mainloop(int sockfd)
     struct sockaddr_ll from;
     unsigned int len, addrlen;
     char buffer[4096];
+
+    ui_init();
 
     for(;;) {
         len = recvfrom(sockfd, buffer, 4096, 0, (struct sockaddr *)(&from), &addrlen);

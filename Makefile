@@ -1,4 +1,5 @@
 CFLAGS = -Wall -g -Iinclude
+LIBS = -lncurses
 CC = gcc
 
 .SUFFIXES: .c .o
@@ -17,13 +18,13 @@ TARGET = netmon
 default: $(TARGET)
 
 $(TARGET): $(OBJS:.c=.o)
-	$(CC) $(CFLAGS) $^ -o $(TARGET)
+	$(CC) $(CFLAGS) $^ -o $(TARGET) $(LIBS)
 
 errors.o: src/errors.c include/errors.h
 
 main.o: src/main.c include/netmon.h include/errors.h
 
-netmon.o: src/netmon.c include/netmon.h include/errors.h include/packet.h
+netmon.o: src/netmon.c include/netmon.h include/errors.h include/ui.h include/packet.h
 
 ui.o: src/ui.c include/ui.h
 
