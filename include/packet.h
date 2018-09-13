@@ -29,8 +29,8 @@ typedef struct __attribute__((packed)) {
 } PACKET_ARP_HDR;
 
 // Defines IP protocol numbers
-#define IP_PROTOCOL_TCP 0x0006
-#define IP_PROTOCOL_UDP 0x0011
+#define IP_PROTOCOL_TCP 0x06
+#define IP_PROTOCOL_UDP 0x11
 
 // IPv4 packet header
 typedef struct __attribute__((packed)) {

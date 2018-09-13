@@ -79,6 +79,7 @@ static void process_packet(char *packet_bytes, int len)
     char mac_dest[MACLENGTH + 1];
     PACKET_ETH_HDR eth_hdr;
     PACKET_ARP_HDR arp_hdr;
+    PACKET_IP4_HDR ip4_hdr;
 
     memcpy(&eth_hdr, packet_bytes, sizeof(PACKET_ETH_HDR));
     mac_to_string(eth_hdr.eth_mac_src, mac_src);
@@ -86,7 +87,18 @@ static void process_packet(char *packet_bytes, int len)
 
     switch(ntohs(eth_hdr.eth_type)) {
         case ETH_TYPE_IP4:
-            ui_display_packet(mac_dest, mac_src, "IPv4", "UNKNOWN");
+            memcpy(&ip4_hdr, packet_bytes + sizeof(PACKET_ETH_HDR), sizeof(PACKET_IP4_HDR));
+            switch(ip4_hdr.ip4_protocol) {
+                case IP_PROTOCOL_TCP: 
+                    ui_display_packet(mac_dest, mac_src, "IPv4", "TCP");
+                    break;
+                case IP_PROTOCOL_UDP: 
+                    ui_display_packet(mac_dest, mac_src, "IPv4", "UDP");
+                    break;
+                default:
+                    ui_display_packet(mac_dest, mac_src, "IPv4", "UNKNOWN");
+                    break;
+            }
             break;
         case ETH_TYPE_IP6:
             ui_display_packet(mac_dest, mac_src, "IPv6", "UNKNOWN");
