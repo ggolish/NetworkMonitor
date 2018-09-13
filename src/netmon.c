@@ -15,8 +15,12 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 
+// The length of a macaddress
+#define MACLENGTH 15
+
 static void process_packet(char *packet_bytes, int len);
 static void print_mac_address(unsigned char *address);
+static void mac_to_string(unsigned char *ma, char *buffer);
 
 // Opens a raw socket and returns its file descriptor
 int netmon_init(char *device_name)
@@ -72,32 +76,32 @@ int netmon_mainloop(int sockfd)
 
 static void process_packet(char *packet_bytes, int len)
 {
+    char mac_src[MACLENGTH], mac_dest[MACLENGTH];
     PACKET_ETH_HDR eth_hdr;
     PACKET_ARP_HDR arp_hdr;
 
     memcpy(&eth_hdr, packet_bytes, sizeof(PACKET_ETH_HDR));
-    print_mac_address(eth_hdr.eth_mac_dest);
-    print_mac_address(eth_hdr.eth_mac_src);
+    mac_to_string(eth_hdr.eth_mac_src, mac_src);
+    mac_to_string(eth_hdr.eth_mac_dest, mac_dest);
 
     switch(ntohs(eth_hdr.eth_type)) {
         case ETH_TYPE_IP4:
-            printf("ipv4\n");
+            ui_display_packet(mac_dest, mac_src, "IPv4", "UNKNOWN");
             break;
         case ETH_TYPE_IP6:
-            printf("ipv6\n");
+            ui_display_packet(mac_dest, mac_src, "IPv6", "UNKNOWN");
             break;
         case ETH_TYPE_ARP:
-            printf("arp");
             memcpy(&arp_hdr, packet_bytes + sizeof(PACKET_ETH_HDR), sizeof(PACKET_ARP_HDR));
             switch(ntohs(arp_hdr.arp_oper)) {
                 case ARP_OPER_REQUEST:
-                    printf(" request\n");
+                    ui_display_packet(mac_dest, mac_src, "ARP", "REQUEST");
                     break;
                 case ARP_OPER_REPLY:
-                    printf(" reply\n");
+                    ui_display_packet(mac_dest, mac_src, "ARP", "REPLY");
                     break;
                 default:
-                    printf(" unknown\n");
+                    ui_display_packet(mac_dest, mac_src, "ARP", "UNKNOWN");
                     break;
             }
             break;
@@ -116,4 +120,10 @@ static void print_mac_address(unsigned char *address)
         if(i < 5) printf(":");
     }
     printf("\n");
+}
+
+static void mac_to_string(unsigned char *ma, char *buffer)
+{
+    sprintf(buffer, "%02x:%02x:%02x:%02x:%02x:%02x", 
+            ma[0], ma[1], ma[2], ma[3], ma[4], ma[5]);
 }
