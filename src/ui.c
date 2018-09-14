@@ -2,8 +2,8 @@
 
 #include <ncurses.h>
 
-#define MIN_STAT_DISPLAY 5
-#define MIN_IP_SPACING 20
+#define MIN_STAT_DISPLAY 6
+#define MIN_IP_SPACING 23
 #define MIN_MAC_SPACING 20
 #define MAX_MAC_SPACING_FACTOR 0.35
 #define MIN_PROTOCOL_SPACING 10
@@ -89,6 +89,62 @@ void ui_display_packet(char *mac_dest, char *mac_src, char *type, char *type_typ
         
 }
 
+void ui_display_ip_addr(char *addr)
+{
+    wmove(ui.ip_display, ui.ip_lineno, 1);
+    wprintw(ui.ip_display, "%-*s", ui.ip_spacing, addr);
+    wrefresh(ui.ip_display);
+    if(ui.ip_lineno == LINES - MIN_STAT_DISPLAY - 2) {
+        scroll(ui.ip_display);
+    } else {
+        ui.ip_lineno++;
+    }
+}
+
+void ui_display_ether_types(int arp, int ip4, int ip6)
+{
+    move(0, 1);
+    clrtoeol();
+    printw("ARP: %d    IPv4: %d    IPv6: %d", arp, ip4, ip6);
+    refresh();
+}
+
+void ui_display_ip_types(int tcp, int udp, int igmp, int icmp)
+{
+    move(1, 1);
+    clrtoeol();
+    printw("TCP: %d    UDP: %d    IGMP: %d    ICMP: %d", tcp, udp, igmp, icmp);
+    refresh();
+}
+
+void ui_display_arp_types(int reply, int request)
+{
+    move(2, 1);
+    clrtoeol();
+    printw("ARP Request: %d    ARP Reply: %d", request, reply);
+    refresh();
+}
+
+void ui_display_rate(int volume, int time)
+{
+    move(3, 1);
+    clrtoeol();
+    printw("Volume (B): %d    Time (s): %d    Rate (B/s): %.02f", volume, time, (float)volume / (float)time);
+    refresh();
+}
+
+void ui_display_mac_addr(char *addr)
+{
+    wmove(ui.mac_display, ui.mac_lineno, 1);
+    wprintw(ui.mac_display, "%-*s", ui.mac_spacing, addr);
+    wrefresh(ui.mac_display);
+    if(ui.mac_lineno == LINES - MIN_STAT_DISPLAY - 2) {
+        scroll(ui.mac_display);
+    } else {
+        ui.mac_lineno++;
+    }
+}
+
 static void calculate_spacing()
 {
     int x;
@@ -103,7 +159,7 @@ static void calculate_spacing()
     ui.packet_display_width = ui.packet_spacing[0] * 2 + ui.packet_spacing[1] * 2 + 2;
 
     // Calculate spacing for MAC address display
-    x = (COLS - ui.packet_display_width) * 0.5;
+    x = (COLS - ui.packet_display_width) * 0.4;
     ui.mac_spacing = (x > MIN_MAC_SPACING) ? x : MIN_MAC_SPACING;
     ui.mac_display_width = ui.mac_spacing;
 

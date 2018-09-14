@@ -29,8 +29,11 @@ typedef struct __attribute__((packed)) {
 } PACKET_ARP_HDR;
 
 // Defines IP protocol numbers
-#define IP_PROTOCOL_TCP 0x06
-#define IP_PROTOCOL_UDP 0x11
+#define IP_PROTOCOL_ICMP    0x01
+#define IP_PROTOCOL_IGMP    0x02
+#define IP_PROTOCOL_TCP     0x06
+#define IP_PROTOCOL_UDP     0x11
+#define IP_PROTOCOL_IP6ICMP 0x3A
 
 // IPv4 packet header
 typedef struct __attribute__((packed)) {
@@ -45,5 +48,14 @@ typedef struct __attribute__((packed)) {
     uint8_t  ip4_src[4];
     uint8_t  ip4_dest[4];
 } PACKET_IP4_HDR;
+
+// IPv6 packet header
+typedef struct __attribute__((packed)) {
+    uint8_t ip6_junk[6];
+    uint8_t ip6_protocol;
+    uint8_t ip6_hop;
+    uint16_t ip6_src[8];
+    uint16_t ip6_dest[8];
+} PACKET_IP6_HDR;
 
 #endif
