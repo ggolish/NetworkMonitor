@@ -154,6 +154,8 @@ static void process_packet(char *packet_bytes, int len)
             process_arp_packet(packet_bytes + sizeof(PACKET_ETH_HDR), mac_dest, mac_src);
             break;
         default:
+            sprintf(error_msg, "Unkown ethernet type: %04x", ntohs(eth_hdr.eth_type));
+            log_error();
             break;
     }
 }
@@ -251,7 +253,7 @@ static void process_arp_packet(char *packet_bytes, char *mac_dest, char *mac_src
             break;
         default:
             ui_display_packet(mac_dest, mac_src, "ARP", "UNKNOWN");
-            sprintf(error_msg, "Unkown ARP operation: %04x", arp_hdr.arp_oper);
+            sprintf(error_msg, "Unkown ARP operation: %04x", ntohs(arp_hdr.arp_oper));
             log_error();
             break;
     }
