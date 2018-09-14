@@ -23,6 +23,6 @@ void error_init_log()
 
 void log_error()
 {
-    printf("%s\n", error_msg);
-    fprintf(error_log, "%s\n", error_msg);
+    fwrite(error_msg, sizeof(char), MAX_ERROR, error_log);
+    fwrite("\n", sizeof(char), 1, error_log);
 }
