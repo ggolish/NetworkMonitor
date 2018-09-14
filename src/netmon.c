@@ -106,7 +106,8 @@ int netmon_init(char *device_name)
 int netmon_mainloop(int sockfd)
 {
     struct sockaddr_ll from;
-    unsigned int len, addrlen;
+    unsigned int addrlen;
+    int len;
     char buffer[4096];
     time_t current_time;
 
@@ -114,14 +115,14 @@ int netmon_mainloop(int sockfd)
     ui_init();
 
     for(;;) {
-        len = recvfrom(sockfd, buffer, 4096, 0, (struct sockaddr *)(&from), &addrlen);
-        process_packet(buffer, len);
+        len = recvfrom(sockfd, buffer, 4096, MSG_DONTWAIT, (struct sockaddr *)(&from), &addrlen);
+        if(len > 0) process_packet(buffer, len);
 
         ui_display_ether_types(netmon.arp_count, netmon.ip4_count, netmon.ip6_count);
         ui_display_ip_types(netmon.tcp_count, netmon.udp_count, netmon.igmp_count, netmon.icmp_count);
         ui_display_arp_types(netmon.reply_count, netmon.request_count);
 
-        netmon.total_bytes += len;
+        if(len > 0) netmon.total_bytes += len;
         current_time = time(NULL) - netmon.start_time;
         if(current_time > 0)
             ui_display_rate(netmon.total_bytes, current_time);
