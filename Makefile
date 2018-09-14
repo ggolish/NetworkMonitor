@@ -28,9 +28,6 @@ netmon.o: src/netmon.c include/netmon.h include/errors.h include/ui.h include/pa
 
 ui.o: src/ui.c include/ui.h
 
-run: $(TARGET)
-	./$(TARGET)
-
 clean:
 	rm -f src/errors.o
 	rm -f src/main.o
