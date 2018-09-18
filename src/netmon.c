@@ -19,6 +19,9 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 
+// The length in seconds of each time block
+#define TIME_BLOCK_LENGTH 1
+#define TIME_BLOCK_AMOUNT 5
 
 #define MACLENGTH 17 // The length of a mac address (with colons)
 #define IP4LENGTH 15 // The length of an IPv4 address (with periods)
@@ -28,23 +31,25 @@
 #define CHUNK 8
 
 typedef struct __attribute__((packed)) {
-   int arp_total;     // ARP packet total
-   int ip4_total;     // IPv4 packet total
-   int ip6_total;     // IPv6 packet total
-   int reply_total;   // ARP reply packet total
-   int request_total; // ARP request packet total
-   int igmp_total;    // IGMP packet total
-   int icmp_total;    // ICMP packet total
-   int tcp_total;     // TCP packet total
-   int udp_total;     // UDP packet total
-   time_t start_time; // The start time of the program
-   int total_bytes;   // The total number of bytes seen
-   char **ip_addrs;   // The list of all IP addresses seen
-   int ip_len;
-   int ip_capacity;
-   char **mac_addrs;  // The list of all MAC addresses seen
-   int mac_len;
-   int mac_capacity;
+    RATE_QUEUE *rq;    // A circular queue for maintaining the rate
+    TIME_BLOCK *tb;    // The current block in the rate queue
+    int arp_total;     // ARP packet total
+    int ip4_total;     // IPv4 packet total
+    int ip6_total;     // IPv6 packet total
+    int reply_total;   // ARP reply packet total
+    int request_total; // ARP request packet total
+    int igmp_total;    // IGMP packet total
+    int icmp_total;    // ICMP packet total
+    int tcp_total;     // TCP packet total
+    int udp_total;     // UDP packet total
+    int total_bytes;   // The total number of bytes seen
+    time_t total_time; // The total length of time for rate
+    char **ip_addrs;   // The list of all IP addresses seen
+    int ip_len;
+    int ip_capacity;
+    char **mac_addrs;  // The list of all MAC addresses seen
+    int mac_len;
+    int mac_capacity;
 } NETMON;
 
 static NETMON netmon;
@@ -95,7 +100,8 @@ int netmon_init(char *device_name)
 
     // Initialize the netmon structure
     memset(&netmon, 0, sizeof(NETMON));
-    netmon.start_time = time(NULL);
+    netmon.rq = rate_queue_new(TIME_BLOCK_AMOUNT);
+    netmon.tb = time_block_next(netmon.rq);
     netmon.ip_capacity = CHUNK;
     netmon.ip_addrs = (char **)malloc(netmon.ip_capacity * sizeof(char *));
     netmon.mac_capacity = CHUNK;
@@ -108,25 +114,41 @@ int netmon_mainloop(int sockfd)
 {
     struct sockaddr_ll from;
     unsigned int addrlen;
-    int len;
+    int len, rate_total;
     char buffer[4096];
     time_t current_time;
 
     error_init_log();
     ui_init();
+    time_block_init(netmon.tb, time(NULL));
+    rate_total = TIME_BLOCK_AMOUNT * TIME_BLOCK_LENGTH;
 
     for(;;) {
-        len = recvfrom(sockfd, buffer, 4096, MSG_DONTWAIT, (struct sockaddr *)(&from), &addrlen);
-        if(len > 0) process_packet(buffer, len);
 
+        // Process a packet if there is one
+        len = recvfrom(sockfd, buffer, 4096, MSG_DONTWAIT, (struct sockaddr *)(&from), &addrlen);
+        if(len > 0) {
+            process_packet(buffer, len);
+            netmon.tb->byte_count += len;
+        }
+
+
+        // Update volume / rate
+        current_time = time(NULL) - netmon.tb->start_time;
+        if(current_time >= TIME_BLOCK_LENGTH) {
+            netmon.total_bytes += netmon.tb->byte_count;
+            if(netmon.total_time < rate_total)
+                netmon.total_time += TIME_BLOCK_LENGTH;
+            netmon.tb = time_block_next(netmon.rq);
+            netmon.total_bytes -= netmon.tb->byte_count;
+            time_block_init(netmon.tb, time(NULL));
+            ui_display_rate(netmon.total_bytes, netmon.total_time);
+        }
+
+        // Update packet numbers
         ui_display_ether_types(netmon.arp_total, netmon.ip4_total, netmon.ip6_total);
         ui_display_ip_types(netmon.tcp_total, netmon.udp_total, netmon.igmp_total, netmon.icmp_total);
         ui_display_arp_types(netmon.reply_total, netmon.request_total);
-
-        if(len > 0) netmon.total_bytes += len;
-        current_time = time(NULL) - netmon.start_time;
-        if(current_time > 0)
-            ui_display_rate(netmon.total_bytes, current_time);
     }
 
     return 1;

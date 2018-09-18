@@ -129,7 +129,7 @@ void ui_display_rate(int volume, int time)
 {
     move(3, 1);
     clrtoeol();
-    printw("Volume (B): %d    Time (s): %d    Rate (B/s): %.02f", volume, time, (float)volume / (float)time);
+    printw("Volume (B): %d    Rate (B/s): %.02f", volume, (float)volume / (float)time);
     refresh();
 }
 

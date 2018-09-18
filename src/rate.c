@@ -20,6 +20,7 @@ TIME_BLOCK *time_block_new()
     TIME_BLOCK *tb;
 
     tb = (TIME_BLOCK *)malloc(sizeof(TIME_BLOCK));
+    memset(tb, 0, sizeof(TIME_BLOCK));
     return tb;
 }
 
