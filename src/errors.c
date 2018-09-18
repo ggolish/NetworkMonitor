@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static FILE *error_log;
 
@@ -23,6 +24,6 @@ void error_init_log()
 
 void log_error()
 {
-    fwrite(error_msg, sizeof(char), MAX_ERROR, error_log);
+    fwrite(error_msg, sizeof(char), strlen(error_msg), error_log);
     fwrite("\n", sizeof(char), 1, error_log);
 }
