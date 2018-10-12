@@ -7,7 +7,7 @@
 #define ETH_TYPE_IP4 0x0800
 #define ETH_TYPE_ARP 0x0806
 #define ETH_TYPE_IP6 0x86DD
-#define ETH_TYPE_NETRANS 
+#define ETH_TYPE_NETRANS 0x0929
 
 // Ethernet packet header
 typedef struct __attribute__((packed)) {

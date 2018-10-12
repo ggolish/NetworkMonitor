@@ -61,6 +61,7 @@ static void process_packet(char *packet_bytes, int len, uint16_t mask);
 static void process_ip4_packet(char *packet_bytes, char *mac_dest, char *mac_src);
 static void process_ip6_packet(char *packet_bytes, char *mac_dest, char *mac_src);
 static void process_arp_packet(char *packet_bytes, char *mac_dest, char *mac_src);
+static void process_netrans_packet(char *packet_bytes, char *mac_dest, char *mac_src);
 
 static void ip4_to_string(unsigned char *ip, char *buffer);
 static void ip6_to_string(unsigned short *ip, char *buffer);
@@ -194,6 +195,9 @@ static void process_packet(char *packet_bytes, int len, uint16_t mask)
         case ETH_TYPE_ARP:
             process_arp_packet(packet_bytes + sizeof(PACKET_ETH_HDR), mac_dest, mac_src);
             break;
+        case ETH_TYPE_NETRANS:
+            process_netrans_packet(packet_bytes + sizeof(PACKET_ETH_HDR), mac_dest, mac_src);
+            break;
         default:
             sprintf(error_msg, "Unkown ethernet type: %04x", ntohs(eth_hdr.eth_type));
             ui_display_error(error_msg);
@@ -298,6 +302,11 @@ static void process_arp_packet(char *packet_bytes, char *mac_dest, char *mac_src
             ui_display_error(error_msg);
             break;
     }
+}
+
+static void process_netrans_packet(char *packet_bytes, char *mac_dest, char *mac_src)
+{
+    ui_display_packet(mac_dest, mac_src, "NETRANS", "TBD");
 }
 
 static void ip6_to_string(unsigned short *ip, char *buffer)
