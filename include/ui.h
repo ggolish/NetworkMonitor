@@ -9,5 +9,6 @@ extern void ui_display_ether_types(int arp, int ip4, int ip6);
 extern void ui_display_ip_types(int tcp, int udp, int igmp, int icmp);
 extern void ui_display_arp_types(int reply, int request);
 extern void ui_display_rate(int volume, int time);
+extern void ui_display_error(const char *error_msg);
 
 #endif

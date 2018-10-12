@@ -2,12 +2,14 @@
 
 #include <ncurses.h>
 
-#define MIN_STAT_DISPLAY 6
+#define MIN_STAT_DISPLAY 7
 #define MIN_IP_SPACING 23
 #define MIN_MAC_SPACING 20
 #define MAX_MAC_SPACING_FACTOR 0.35
 #define MIN_PROTOCOL_SPACING 10
 #define MAX_PROTOCOL_SPACING_FACTOR 0.15
+
+#define K 1024
 
 typedef struct {
 
@@ -42,6 +44,7 @@ void ui_init()
     initscr();
     start_color();
     init_pair(1, COLOR_BLACK, COLOR_WHITE);
+    init_pair(2, COLOR_RED, COLOR_BLACK);
     cbreak();
     noecho();
     curs_set(0);
@@ -58,14 +61,14 @@ void ui_init()
     ui.packet_lineno = 0;
 
     // Initializing mac address display
-    ui.mac_display = newwin(LINES - MIN_STAT_DISPLAY, ui.mac_display_width, 
+    ui.mac_display = newwin(LINES - MIN_STAT_DISPLAY - 2, ui.mac_display_width, 
             MIN_STAT_DISPLAY, ui.packet_display_width + 2);
     scrollok(ui.mac_display, true);
     wrefresh(ui.mac_display);
     ui.mac_lineno = 0;
 
     // Initializing mac address display
-    ui.ip_display = newwin(LINES - MIN_STAT_DISPLAY, ui.ip_display_width, 
+    ui.ip_display = newwin(LINES - MIN_STAT_DISPLAY - 2, ui.ip_display_width, 
             MIN_STAT_DISPLAY, ui.packet_display_width + ui.mac_display_width + 4);
     scrollok(ui.ip_display, true);
     wrefresh(ui.ip_display);
@@ -92,9 +95,9 @@ void ui_display_packet(char *mac_dest, char *mac_src, char *type, char *type_typ
 void ui_display_ip_addr(char *addr)
 {
     wmove(ui.ip_display, ui.ip_lineno, 1);
-    wprintw(ui.ip_display, "%-*s", ui.ip_spacing, addr);
+    wprintw(ui.ip_display, "%s", addr);
     wrefresh(ui.ip_display);
-    if(ui.ip_lineno == LINES - MIN_STAT_DISPLAY - 2) {
+    if(ui.ip_lineno == LINES - MIN_STAT_DISPLAY - 3) {
         scroll(ui.ip_display);
     } else {
         ui.ip_lineno++;
@@ -127,22 +130,46 @@ void ui_display_arp_types(int reply, int request)
 
 void ui_display_rate(int volume, int time)
 {
+    double rate;
+
+    rate = (double)volume / (double)time;
+
     move(3, 1);
     clrtoeol();
-    printw("Volume (B): %d    Time (s): %d    Rate (B/s): %.02f", volume, time, (float)volume / (float)time);
+
+    if(rate > K * K * K) {
+        printw("Rate: %6.02f Gb/s", volume, rate / K / K / K);
+    } else if(rate > K * K) {
+        printw("Rate: %6.02f Mb/s", volume, rate / K / K);
+    } else if(rate > K) {
+        printw("Rate: %6.02f kb/s", volume, rate / K);
+    } else {
+        printw("Rate: %6.02f  b/s", volume, rate);
+    }
+
     refresh();
 }
 
 void ui_display_mac_addr(char *addr)
 {
     wmove(ui.mac_display, ui.mac_lineno, 1);
-    wprintw(ui.mac_display, "%-*s", ui.mac_spacing, addr);
+    wprintw(ui.mac_display, "%s", addr);
     wrefresh(ui.mac_display);
-    if(ui.mac_lineno == LINES - MIN_STAT_DISPLAY - 2) {
+    if(ui.mac_lineno == LINES - MIN_STAT_DISPLAY - 3) {
         scroll(ui.mac_display);
     } else {
         ui.mac_lineno++;
     }
+}
+
+void ui_display_error(const char *error_msg)
+{
+    move(4, 1);
+    clrtoeol();
+    attron(COLOR_PAIR(2));
+    printw(error_msg);
+    attroff(COLOR_PAIR(2));
+    refresh();
 }
 
 static void calculate_spacing()

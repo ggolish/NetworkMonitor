@@ -2,6 +2,7 @@
 #include "errors.h"
 #include "ui.h"
 #include "packet.h"
+#include "rate.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -18,6 +19,11 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 
+#define DEFAULT_NET_DEVICE "eth0"
+
+// The length in seconds of each time block
+#define TIME_BLOCK_LENGTH 1
+#define TIME_BLOCK_AMOUNT 5
 
 #define MACLENGTH 17 // The length of a mac address (with colons)
 #define IP4LENGTH 15 // The length of an IPv4 address (with periods)
@@ -27,28 +33,31 @@
 #define CHUNK 8
 
 typedef struct __attribute__((packed)) {
-   int arp_count;     // ARP packet count
-   int ip4_count;     // IPv4 packet count
-   int ip6_count;     // IPv6 packet count
-   int reply_count;   // ARP reply packet count
-   int request_count; // ARP request packet count
-   int igmp_count;    // IGMP packet count
-   int icmp_count;    // ICMP packet count
-   int tcp_count;     // TCP packet count
-   int udp_count;     // UDP packet count
-   time_t start_time; // The start time of the program
-   int total_bytes;   // The total number of bytes seen
-   char **ip_addrs;   // The list of all IP addresses seen
-   int ip_len;
-   int ip_capacity;
-   char **mac_addrs;  // The list of all MAC addresses seen
-   int mac_len;
-   int mac_capacity;
+    RATE_QUEUE *rq;    // A circular queue for maintaining the rate
+    TIME_BLOCK *tb;    // The current block in the rate queue
+    int arp_total;     // ARP packet total
+    int ip4_total;     // IPv4 packet total
+    int ip6_total;     // IPv6 packet total
+    int reply_total;   // ARP reply packet total
+    int request_total; // ARP request packet total
+    int igmp_total;    // IGMP packet total
+    int icmp_total;    // ICMP packet total
+    int tcp_total;     // TCP packet total
+    int udp_total;     // UDP packet total
+    int total_bytes;   // The total number of bytes seen
+    time_t total_time; // The total length of time for rate
+    char **ip_addrs;   // The list of all IP addresses seen
+    int ip_len;
+    int ip_capacity;
+    char **mac_addrs;  // The list of all MAC addresses seen
+    int mac_len;
+    int mac_capacity;
 } NETMON;
 
 static NETMON netmon;
 
-static void process_packet(char *packet_bytes, int len);
+static int skip_packet(uint16_t type, uint16_t mask);
+static void process_packet(char *packet_bytes, int len, uint16_t mask);
 static void process_ip4_packet(char *packet_bytes, char *mac_dest, char *mac_src);
 static void process_ip6_packet(char *packet_bytes, char *mac_dest, char *mac_src);
 static void process_arp_packet(char *packet_bytes, char *mac_dest, char *mac_src);
@@ -74,6 +83,8 @@ int netmon_init(char *device_name)
         return -1;
     }
 
+    if(!device_name) device_name = strdup(DEFAULT_NET_DEVICE);
+
     // Ensure device_name is really a network device name and determine device index
     memset(&ifr, 0, sizeof(struct ifreq));
     strcpy(ifr.ifr_name, device_name);
@@ -94,7 +105,8 @@ int netmon_init(char *device_name)
 
     // Initialize the netmon structure
     memset(&netmon, 0, sizeof(NETMON));
-    netmon.start_time = time(NULL);
+    netmon.rq = rate_queue_new(TIME_BLOCK_AMOUNT);
+    netmon.tb = time_block_next(netmon.rq);
     netmon.ip_capacity = CHUNK;
     netmon.ip_addrs = (char **)malloc(netmon.ip_capacity * sizeof(char *));
     netmon.mac_capacity = CHUNK;
@@ -103,39 +115,61 @@ int netmon_init(char *device_name)
     return sockfd;
 }
 
-int netmon_mainloop(int sockfd)
+int netmon_mainloop(int sockfd, uint16_t mask)
 {
     struct sockaddr_ll from;
     unsigned int addrlen;
-    int len;
+    int len, rate_total;
     char buffer[4096];
     time_t current_time;
 
-    error_init_log();
     ui_init();
+    time_block_init(netmon.tb, time(NULL));
+    rate_total = TIME_BLOCK_AMOUNT * TIME_BLOCK_LENGTH;
 
     for(;;) {
+
+        // Process a packet if there is one
         len = recvfrom(sockfd, buffer, 4096, MSG_DONTWAIT, (struct sockaddr *)(&from), &addrlen);
-        if(len > 0) process_packet(buffer, len);
+        if(len > 0) {
+            process_packet(buffer, len, mask);
+            netmon.tb->byte_count += len;
+        }
 
-        ui_display_ether_types(netmon.arp_count, netmon.ip4_count, netmon.ip6_count);
-        ui_display_ip_types(netmon.tcp_count, netmon.udp_count, netmon.igmp_count, netmon.icmp_count);
-        ui_display_arp_types(netmon.reply_count, netmon.request_count);
 
-        if(len > 0) netmon.total_bytes += len;
-        current_time = time(NULL) - netmon.start_time;
-        if(current_time > 0)
-            ui_display_rate(netmon.total_bytes, current_time);
+        // Update volume / rate
+        current_time = time(NULL) - netmon.tb->start_time;
+        if(current_time >= TIME_BLOCK_LENGTH) {
+            netmon.total_bytes += netmon.tb->byte_count;
+            if(netmon.total_time < rate_total)
+                netmon.total_time += TIME_BLOCK_LENGTH;
+            netmon.tb = time_block_next(netmon.rq);
+            netmon.total_bytes -= netmon.tb->byte_count;
+            time_block_init(netmon.tb, time(NULL));
+            ui_display_rate(netmon.total_bytes, netmon.total_time);
+        }
+
+        // Update packet numbers
+        ui_display_ether_types(netmon.arp_total, netmon.ip4_total, netmon.ip6_total);
+        ui_display_ip_types(netmon.tcp_total, netmon.udp_total, netmon.igmp_total, netmon.icmp_total);
+        ui_display_arp_types(netmon.reply_total, netmon.request_total);
     }
 
     return 1;
 }
 
-static void process_packet(char *packet_bytes, int len)
+static int skip_packet(uint16_t type, uint16_t mask)
+{
+    if(mask == -1) return 1;
+    return type == mask;
+}
+
+static void process_packet(char *packet_bytes, int len, uint16_t mask)
 {
     PACKET_ETH_HDR eth_hdr;
     char mac_src[MACLENGTH + 1];
     char mac_dest[MACLENGTH + 1];
+    uint16_t type;
 
     memcpy(&eth_hdr, packet_bytes, sizeof(PACKET_ETH_HDR));
     mac_to_string(eth_hdr.eth_mac_src, mac_src);
@@ -143,19 +177,23 @@ static void process_packet(char *packet_bytes, int len)
     insert_mac_addr(mac_src);
     insert_mac_addr(mac_dest);
 
-    switch(ntohs(eth_hdr.eth_type)) {
+    type = ntohs(eth_hdr.eth_type);
+    switch(type) {
         case ETH_TYPE_IP4:
+            if(skip_packet(type, mask)) break;
             process_ip4_packet(packet_bytes + sizeof(PACKET_ETH_HDR), mac_dest, mac_src);
             break;
         case ETH_TYPE_IP6:
+            if(skip_packet(type, mask)) break;
             process_ip6_packet(packet_bytes + sizeof(PACKET_ETH_HDR), mac_dest, mac_src);
             break;
         case ETH_TYPE_ARP:
+            if(skip_packet(type, mask)) break;
             process_arp_packet(packet_bytes + sizeof(PACKET_ETH_HDR), mac_dest, mac_src);
             break;
         default:
             sprintf(error_msg, "Unkown ethernet type: %04x", ntohs(eth_hdr.eth_type));
-            log_error();
+            ui_display_error(error_msg);
             break;
     }
 }
@@ -167,28 +205,28 @@ static void process_ip4_packet(char *packet_bytes, char *mac_dest, char *mac_src
     char ip4_dest[IP4LENGTH + 1];
 
     memcpy(&ip4_hdr, packet_bytes, sizeof(PACKET_IP4_HDR));
-    netmon.ip4_count++;
+    netmon.ip4_total++;
     switch(ip4_hdr.ip4_protocol) {
         case IP_PROTOCOL_ICMP: 
             ui_display_packet(mac_dest, mac_src, "IPv4", "ICMP");
-            netmon.icmp_count++;
+            netmon.icmp_total++;
             break;
         case IP_PROTOCOL_IGMP: 
             ui_display_packet(mac_dest, mac_src, "IPv4", "IGMP");
-            netmon.igmp_count++;
+            netmon.igmp_total++;
             break;
         case IP_PROTOCOL_TCP: 
             ui_display_packet(mac_dest, mac_src, "IPv4", "TCP");
-            netmon.tcp_count++;
+            netmon.tcp_total++;
             break;
         case IP_PROTOCOL_UDP: 
             ui_display_packet(mac_dest, mac_src, "IPv4", "UDP");
-            netmon.udp_count++;
+            netmon.udp_total++;
             break;
         default:
             ui_display_packet(mac_dest, mac_src, "IPv4", "UNKNOWN");
             sprintf(error_msg, "Unkown IPv4 protocol: %02x", ip4_hdr.ip4_protocol);
-            log_error();
+            ui_display_error(error_msg);
             break;
     }
 
@@ -205,28 +243,28 @@ static void process_ip6_packet(char *packet_bytes, char *mac_dest, char *mac_src
     char ip6_dest[IP6LENGTH + 1];
 
     memcpy(&ip6_hdr, packet_bytes, sizeof(PACKET_IP6_HDR));
-    netmon.ip6_count++;
+    netmon.ip6_total++;
     switch(ip6_hdr.ip6_protocol) {
         case IP_PROTOCOL_IGMP: 
             ui_display_packet(mac_dest, mac_src, "IPv6", "IGMP");
-            netmon.igmp_count++;
+            netmon.igmp_total++;
             break;
         case IP_PROTOCOL_TCP: 
             ui_display_packet(mac_dest, mac_src, "IPv6", "TCP");
-            netmon.tcp_count++;
+            netmon.tcp_total++;
             break;
         case IP_PROTOCOL_UDP: 
             ui_display_packet(mac_dest, mac_src, "IPv6", "UDP");
-            netmon.udp_count++;
+            netmon.udp_total++;
             break;
         case IP_PROTOCOL_IP6ICMP: 
             ui_display_packet(mac_dest, mac_src, "IPv6", "ICMP");
-            netmon.icmp_count++;
+            netmon.icmp_total++;
             break;
         default:
             ui_display_packet(mac_dest, mac_src, "IPv6", "UNKNOWN");
             sprintf(error_msg, "Unkown IPv6 protocol: %02x", ip6_hdr.ip6_protocol);
-            log_error();
+            ui_display_error(error_msg);
             break;
     }
 
@@ -241,20 +279,20 @@ static void process_arp_packet(char *packet_bytes, char *mac_dest, char *mac_src
     PACKET_ARP_HDR arp_hdr;
 
     memcpy(&arp_hdr, packet_bytes, sizeof(PACKET_ARP_HDR));
-    netmon.arp_count++;
+    netmon.arp_total++;
     switch(ntohs(arp_hdr.arp_oper)) {
         case ARP_OPER_REQUEST:
             ui_display_packet(mac_dest, mac_src, "ARP", "REQUEST");
-            netmon.request_count++;
+            netmon.request_total++;
             break;
         case ARP_OPER_REPLY:
             ui_display_packet(mac_dest, mac_src, "ARP", "REPLY");
-            netmon.reply_count++;
+            netmon.reply_total++;
             break;
         default:
             ui_display_packet(mac_dest, mac_src, "ARP", "UNKNOWN");
             sprintf(error_msg, "Unkown ARP operation: %04x", ntohs(arp_hdr.arp_oper));
-            log_error();
+            ui_display_error(error_msg);
             break;
     }
 }
