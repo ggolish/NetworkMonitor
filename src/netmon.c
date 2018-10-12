@@ -12,8 +12,8 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <linux/if_packet.h>
-#include <net/ethernet.h> 
-#include <time.h> 
+#include <net/ethernet.h>
+#include <time.h>
 
 // Needed to check for device index
 #include <sys/ioctl.h>
@@ -56,7 +56,7 @@ typedef struct __attribute__((packed)) {
 
 static NETMON netmon;
 
-static int skip_packet(uint16_t type, uint16_t mask);
+static int skip_packet(char *packet_bytes, uint16_t mask);
 static void process_packet(char *packet_bytes, int len, uint16_t mask);
 static void process_ip4_packet(char *packet_bytes, char *mac_dest, char *mac_src);
 static void process_ip6_packet(char *packet_bytes, char *mac_dest, char *mac_src);
@@ -77,7 +77,7 @@ int netmon_init(char *device_name)
 
     // Open a raw socket
     sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-    
+
     if(sockfd == -1) {
         sprintf(error_msg, "Unable to open raw socket (root privelidges required)");
         return -1;
@@ -132,8 +132,10 @@ int netmon_mainloop(int sockfd, uint16_t mask)
         // Process a packet if there is one
         len = recvfrom(sockfd, buffer, 4096, MSG_DONTWAIT, (struct sockaddr *)(&from), &addrlen);
         if(len > 0) {
-            process_packet(buffer, len, mask);
-            netmon.tb->byte_count += len;
+            if(!skip_packet(buffer, mask)) {
+                process_packet(buffer, len, mask);
+                netmon.tb->byte_count += len;
+            }
         }
 
 
@@ -158,10 +160,14 @@ int netmon_mainloop(int sockfd, uint16_t mask)
     return 1;
 }
 
-static int skip_packet(uint16_t type, uint16_t mask)
+static int skip_packet(char *packet_bytes, uint16_t mask)
 {
-    if(mask == -1) return 1;
-    return type == mask;
+    PACKET_ETH_HDR *eth_hdr;
+    uint16_t type;
+
+    eth_hdr = (PACKET_ETH_HDR *)packet_bytes;
+    type = ntohs(eth_hdr->eth_type);
+    return (mask != 0) && (mask != type);
 }
 
 static void process_packet(char *packet_bytes, int len, uint16_t mask)
@@ -180,15 +186,12 @@ static void process_packet(char *packet_bytes, int len, uint16_t mask)
     type = ntohs(eth_hdr.eth_type);
     switch(type) {
         case ETH_TYPE_IP4:
-            if(skip_packet(type, mask)) break;
             process_ip4_packet(packet_bytes + sizeof(PACKET_ETH_HDR), mac_dest, mac_src);
             break;
         case ETH_TYPE_IP6:
-            if(skip_packet(type, mask)) break;
             process_ip6_packet(packet_bytes + sizeof(PACKET_ETH_HDR), mac_dest, mac_src);
             break;
         case ETH_TYPE_ARP:
-            if(skip_packet(type, mask)) break;
             process_arp_packet(packet_bytes + sizeof(PACKET_ETH_HDR), mac_dest, mac_src);
             break;
         default:
@@ -207,19 +210,19 @@ static void process_ip4_packet(char *packet_bytes, char *mac_dest, char *mac_src
     memcpy(&ip4_hdr, packet_bytes, sizeof(PACKET_IP4_HDR));
     netmon.ip4_total++;
     switch(ip4_hdr.ip4_protocol) {
-        case IP_PROTOCOL_ICMP: 
+        case IP_PROTOCOL_ICMP:
             ui_display_packet(mac_dest, mac_src, "IPv4", "ICMP");
             netmon.icmp_total++;
             break;
-        case IP_PROTOCOL_IGMP: 
+        case IP_PROTOCOL_IGMP:
             ui_display_packet(mac_dest, mac_src, "IPv4", "IGMP");
             netmon.igmp_total++;
             break;
-        case IP_PROTOCOL_TCP: 
+        case IP_PROTOCOL_TCP:
             ui_display_packet(mac_dest, mac_src, "IPv4", "TCP");
             netmon.tcp_total++;
             break;
-        case IP_PROTOCOL_UDP: 
+        case IP_PROTOCOL_UDP:
             ui_display_packet(mac_dest, mac_src, "IPv4", "UDP");
             netmon.udp_total++;
             break;
@@ -245,19 +248,19 @@ static void process_ip6_packet(char *packet_bytes, char *mac_dest, char *mac_src
     memcpy(&ip6_hdr, packet_bytes, sizeof(PACKET_IP6_HDR));
     netmon.ip6_total++;
     switch(ip6_hdr.ip6_protocol) {
-        case IP_PROTOCOL_IGMP: 
+        case IP_PROTOCOL_IGMP:
             ui_display_packet(mac_dest, mac_src, "IPv6", "IGMP");
             netmon.igmp_total++;
             break;
-        case IP_PROTOCOL_TCP: 
+        case IP_PROTOCOL_TCP:
             ui_display_packet(mac_dest, mac_src, "IPv6", "TCP");
             netmon.tcp_total++;
             break;
-        case IP_PROTOCOL_UDP: 
+        case IP_PROTOCOL_UDP:
             ui_display_packet(mac_dest, mac_src, "IPv6", "UDP");
             netmon.udp_total++;
             break;
-        case IP_PROTOCOL_IP6ICMP: 
+        case IP_PROTOCOL_IP6ICMP:
             ui_display_packet(mac_dest, mac_src, "IPv6", "ICMP");
             netmon.icmp_total++;
             break;
@@ -299,21 +302,21 @@ static void process_arp_packet(char *packet_bytes, char *mac_dest, char *mac_src
 
 static void ip6_to_string(unsigned short *ip, char *buffer)
 {
-    sprintf(buffer, "%01x:%01x:%01x:%01x:%01x:%01x:%01x:%01x", 
+    sprintf(buffer, "%01x:%01x:%01x:%01x:%01x:%01x:%01x:%01x",
             ntohs(ip[0]), ntohs(ip[1]), ntohs(ip[2]), ntohs(ip[3]), ntohs(ip[4]), ntohs(ip[5]), ntohs(ip[6]), ntohs(ip[7]));
     buffer[IP6LENGTH] = '\0';
 }
 
 static void ip4_to_string(unsigned char *ip, char *buffer)
 {
-    sprintf(buffer, "%d.%d.%d.%d", 
+    sprintf(buffer, "%d.%d.%d.%d",
             ip[0], ip[1], ip[2], ip[3]);
     buffer[IP4LENGTH] = '\0';
 }
 
 static void mac_to_string(unsigned char *ma, char *buffer)
 {
-    sprintf(buffer, "%02x:%02x:%02x:%02x:%02x:%02x", 
+    sprintf(buffer, "%02x:%02x:%02x:%02x:%02x:%02x",
             ma[0], ma[1], ma[2], ma[3], ma[4], ma[5]);
     buffer[MACLENGTH] = '\0';
 }

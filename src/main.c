@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 {
     int sockfd, opt;
     char *net_device = NULL;
-    uint16_t ether_type = -1;
+    uint16_t ether_type = 0;
 
     while((opt = getopt(argc, argv, "d:t:")) != -1) {
         switch(opt) {
