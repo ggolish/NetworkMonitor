@@ -13,6 +13,7 @@ OBJS = \
 	src/netmon.c	\
 	src/rate.c	\
 	src/ui.c	\
+	src/args.c
 
 TARGET = netmon
 
@@ -21,9 +22,11 @@ default: $(TARGET)
 $(TARGET): $(OBJS:.c=.o)
 	$(CC) $(CFLAGS) $^ -o $(TARGET) $(CLIBS)
 
+args.o: src/args.c include/args.h
+
 errors.o: src/errors.c include/errors.h
 
-main.o: src/main.c include/netmon.h include/errors.h
+main.o: src/main.c include/netmon.h include/errors.h include/args.h
 
 netmon.o: src/netmon.c include/netmon.h include/errors.h include/ui.h include/packet.h include/rate.h
 
@@ -40,4 +43,5 @@ clean:
 	rm -f src/netmon.o
 	rm -f src/rate.o
 	rm -f src/ui.o
+	rm -f src/args.o
 	rm -f $(TARGET)
