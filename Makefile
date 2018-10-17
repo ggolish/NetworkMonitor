@@ -22,7 +22,7 @@ default: $(TARGET)
 $(TARGET): $(OBJS:.c=.o)
 	$(CC) $(CFLAGS) $^ -o $(TARGET) $(CLIBS)
 
-args.o: src/args.c include/args.h
+args.o: src/args.c include/args.h include/packet.h include/errors.h
 
 errors.o: src/errors.c include/errors.h
 
