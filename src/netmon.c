@@ -38,6 +38,7 @@ typedef struct __attribute__((packed)) {
     int arp_total;     // ARP packet total
     int ip4_total;     // IPv4 packet total
     int ip6_total;     // IPv6 packet total
+    int netrans_total; // Custom netrans protocol total
     int reply_total;   // ARP reply packet total
     int request_total; // ARP request packet total
     int igmp_total;    // IGMP packet total
@@ -153,7 +154,7 @@ int netmon_mainloop(int sockfd, uint16_t mask)
         }
 
         // Update packet numbers
-        ui_display_ether_types(netmon.arp_total, netmon.ip4_total, netmon.ip6_total);
+        ui_display_ether_types(netmon.arp_total, netmon.ip4_total, netmon.ip6_total, netmon.netrans_total);
         ui_display_ip_types(netmon.tcp_total, netmon.udp_total, netmon.igmp_total, netmon.icmp_total);
         ui_display_arp_types(netmon.reply_total, netmon.request_total);
     }
@@ -306,6 +307,7 @@ static void process_arp_packet(char *packet_bytes, char *mac_dest, char *mac_src
 
 static void process_netrans_packet(char *packet_bytes, char *mac_dest, char *mac_src)
 {
+    netmon.netrans_total++;
     ui_display_packet(mac_dest, mac_src, "NETRANS", "TBD");
 }
 

@@ -104,11 +104,11 @@ void ui_display_ip_addr(char *addr)
     }
 }
 
-void ui_display_ether_types(int arp, int ip4, int ip6)
+void ui_display_ether_types(int arp, int ip4, int ip6, int netrans)
 {
     move(0, 1);
     clrtoeol();
-    printw("ARP: %d    IPv4: %d    IPv6: %d", arp, ip4, ip6);
+    printw("ARP: %d    IPv4: %d    IPv6: %d    NETRANS: %d", arp, ip4, ip6, netrans);
     refresh();
 }
 
