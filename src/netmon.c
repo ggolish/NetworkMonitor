@@ -23,7 +23,7 @@
 
 // The length in seconds of each time block
 #define TIME_BLOCK_LENGTH 1
-#define TIME_BLOCK_AMOUNT 5
+#define TIME_BLOCK_AMOUNT 1
 
 #define MACLENGTH 17 // The length of a mac address (with colons)
 #define IP4LENGTH 15 // The length of an IPv4 address (with periods)
@@ -145,12 +145,10 @@ int netmon_mainloop(int sockfd, uint16_t mask)
         current_time = time(NULL) - netmon.tb->start_time;
         if(current_time >= TIME_BLOCK_LENGTH) {
             netmon.total_bytes += netmon.tb->byte_count;
-            if(netmon.total_time < rate_total)
-                netmon.total_time += TIME_BLOCK_LENGTH;
+            ui_display_rate(netmon.total_bytes);
             netmon.tb = time_block_next(netmon.rq);
             netmon.total_bytes -= netmon.tb->byte_count;
             time_block_init(netmon.tb, time(NULL));
-            ui_display_rate(netmon.total_bytes, netmon.total_time);
         }
 
         // Update packet numbers

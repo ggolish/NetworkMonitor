@@ -128,23 +128,30 @@ void ui_display_arp_types(int reply, int request)
     refresh();
 }
 
-void ui_display_rate(int volume, int time)
+void ui_display_rate(int volume)
 {
     double rate;
 
-    rate = (double)volume / (double)time;
-
+    rate = (double)volume;
+    
     move(3, 1);
     clrtoeol();
 
-    if(rate > K * K * K) {
-        printw("Rate: %6.02f Gb/s", volume, rate / K / K / K);
-    } else if(rate > K * K) {
-        printw("Rate: %6.02f Mb/s", volume, rate / K / K);
-    } else if(rate > K) {
-        printw("Rate: %6.02f kb/s", volume, rate / K);
+    if(rate > K) {
+        rate /= K;
+        if(rate > K) {
+            rate /= K;
+            if(rate > K) {
+                rate /= K;
+                printw("Rate: %6.02f  gb/s", rate);
+            } else {
+                printw("Rate: %6.02f  mb/s", rate);
+            }
+        } else {
+            printw("Rate: %6.02f  kb/s", rate);
+        }
     } else {
-        printw("Rate: %6.02f  b/s", volume, rate);
+        printw("Rate: %6.02f  b/s", rate);
     }
 
     refresh();
