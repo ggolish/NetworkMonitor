@@ -59,4 +59,17 @@ typedef struct __attribute__((packed)) {
     uint16_t ip6_dest[8];
 } PACKET_IP6_HDR;
 
+// Defines the types of netrans packets
+#define NETRANS_TYPE_SEND     0x01
+#define NETRANS_TYPE_RECEIVE  0x02
+#define NETRANS_TYPE_ACK      0x03
+#define NETRANS_TYPE_CHUNK    0x04
+
+// Custom netrans header
+typedef struct __attribute__((packed)) {
+    uint8_t netrans_src;
+    uint8_t netrans_dest;
+    uint8_t netrans_type;
+} PACKET_NETRANS_HDR;
+
 #endif
