@@ -2,12 +2,19 @@
 
 #include <ncurses.h>
 
-#define MIN_STAT_DISPLAY 7
+#define MIN_STAT_DISPLAY 8
 #define MIN_IP_SPACING 23
 #define MIN_MAC_SPACING 20
 #define MAX_MAC_SPACING_FACTOR 0.35
 #define MIN_PROTOCOL_SPACING 10
 #define MAX_PROTOCOL_SPACING_FACTOR 0.15
+
+#define ETHER_TYPES_LINE   0
+#define IP_TYPES_LINE      1
+#define ARP_TYPES_LINE     2
+#define NETRANS_TYPES_LINE 3
+#define RATE_DISPLAY_LINE  4
+#define ERROR_DISPLAY_LINE 5
 
 #define K 1024
 
@@ -106,7 +113,7 @@ void ui_display_ip_addr(char *addr)
 
 void ui_display_ether_types(int arp, int ip4, int ip6, int netrans)
 {
-    move(0, 1);
+    move(ETHER_TYPES_LINE, 1);
     clrtoeol();
     printw("ARP: %d    IPv4: %d    IPv6: %d    NETRANS: %d", arp, ip4, ip6, netrans);
     refresh();
@@ -114,7 +121,7 @@ void ui_display_ether_types(int arp, int ip4, int ip6, int netrans)
 
 void ui_display_ip_types(int tcp, int udp, int igmp, int icmp)
 {
-    move(1, 1);
+    move(IP_TYPES_LINE, 1);
     clrtoeol();
     printw("TCP: %d    UDP: %d    IGMP: %d    ICMP: %d", tcp, udp, igmp, icmp);
     refresh();
@@ -122,9 +129,17 @@ void ui_display_ip_types(int tcp, int udp, int igmp, int icmp)
 
 void ui_display_arp_types(int reply, int request)
 {
-    move(2, 1);
+    move(ARP_TYPES_LINE, 1);
     clrtoeol();
     printw("ARP Request: %d    ARP Reply: %d", request, reply);
+    refresh();
+}
+
+void ui_display_netrans_types(int send_total, int receive_total, int ack_total, int chunk_total)
+{
+    move(NETRANS_TYPES_LINE, 1);
+    clrtoeol();
+    printw("NETRANS send: %d    NETRANS receive: %d    NETRANS ack: %d    NETRANS chunk: %d", send_total, receive_total, ack_total, chunk_total);
     refresh();
 }
 
@@ -134,7 +149,7 @@ void ui_display_rate(int volume)
 
     rate = (double)volume;
     
-    move(3, 1);
+    move(RATE_DISPLAY_LINE, 1);
     clrtoeol();
 
     if(rate > K) {
@@ -171,7 +186,7 @@ void ui_display_mac_addr(char *addr)
 
 void ui_display_error(const char *error_msg)
 {
-    move(4, 1);
+    move(ERROR_DISPLAY_LINE, 1);
     clrtoeol();
     attron(COLOR_PAIR(2));
     printw(error_msg);

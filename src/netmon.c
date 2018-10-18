@@ -45,6 +45,10 @@ typedef struct __attribute__((packed)) {
     int icmp_total;    // ICMP packet total
     int tcp_total;     // TCP packet total
     int udp_total;     // UDP packet total
+    int send_total;    // netrans send total
+    int receive_total; // netrans receive total
+    int ack_total;     // netrans ack total
+    int chunk_total;   // netrans chunk total
     int total_bytes;   // The total number of bytes seen
     time_t total_time; // The total length of time for rate
     char **ip_addrs;   // The list of all IP addresses seen
@@ -121,13 +125,12 @@ int netmon_mainloop(int sockfd, uint16_t mask)
 {
     struct sockaddr_ll from;
     unsigned int addrlen;
-    int len, rate_total;
+    int len;
     char buffer[4096];
     time_t current_time;
 
     ui_init();
     time_block_init(netmon.tb, time(NULL));
-    rate_total = TIME_BLOCK_AMOUNT * TIME_BLOCK_LENGTH;
 
     for(;;) {
 
@@ -155,6 +158,7 @@ int netmon_mainloop(int sockfd, uint16_t mask)
         ui_display_ether_types(netmon.arp_total, netmon.ip4_total, netmon.ip6_total, netmon.netrans_total);
         ui_display_ip_types(netmon.tcp_total, netmon.udp_total, netmon.igmp_total, netmon.icmp_total);
         ui_display_arp_types(netmon.reply_total, netmon.request_total);
+        ui_display_netrans_types(netmon.send_total, netmon.receive_total, netmon.ack_total, netmon.chunk_total);
     }
 
     return 1;
@@ -305,8 +309,34 @@ static void process_arp_packet(char *packet_bytes, char *mac_dest, char *mac_src
 
 static void process_netrans_packet(char *packet_bytes, char *mac_dest, char *mac_src)
 {
+    PACKET_NETRANS_HDR netrans_hdr;
+
+    memcpy(&netrans_hdr, packet_bytes, sizeof(PACKET_NETRANS_HDR));
     netmon.netrans_total++;
-    ui_display_packet(mac_dest, mac_src, "NETRANS", "TBD");
+    switch(netrans_hdr.netrans_type) {
+        case NETRANS_TYPE_SEND:
+            ui_display_packet(mac_dest, mac_src, "NETRANS", "SEND");
+            netmon.send_total++;
+            break;
+        case NETRANS_TYPE_RECEIVE:
+            ui_display_packet(mac_dest, mac_src, "NETRANS", "RECEIVE");
+            netmon.receive_total++;
+            break;
+        case NETRANS_TYPE_ACK:
+            ui_display_packet(mac_dest, mac_src, "NETRANS", "ACK");
+            netmon.ack_total++;
+            break;
+        case NETRANS_TYPE_CHUNK:
+            ui_display_packet(mac_dest, mac_src, "NETRANS", "CHUNK");
+            netmon.chunk_total++;
+            break;
+        default:
+            ui_display_packet(mac_dest, mac_src, "NETRANS", "UNKNOWN");
+            sprintf(error_msg, "Unkown NETRANS operation: %02x", netrans_hdr.netrans_type);
+            ui_display_error(error_msg);
+            break;
+    }
+
 }
 
 static void ip6_to_string(unsigned short *ip, char *buffer)
