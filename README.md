@@ -7,9 +7,10 @@ Opens a raw socket and monitors all network traffic for a given network device. 
 ## Instructions
 After cloning the repository, simple run the command ``make netmon`` to build the project. Then run the ``netmon`` executable with root privileges according to the following scheme.
 ```
-netmon [device-name]
+netmon [-d <device-name>] [-t <ethertype>]
 ```
-`device-name` is a required parameter. It is the name of the network device to monitor, e.g. `eth0`. Note: names of devices can be determined with the command `ifconfig`.
+- ``device-name`` is the name of the desired network device to be monitored. The default value is ``eth0``.
+- ``ethertype`` is a specific ethernet type to monitor. This value can be a hexadecimal string, ``arp``, ``ip4``, ``ip6``, or ``netrans``.
 
 ## Purpose
 This project is intended to be used to aid in the development of a custom high-speed file transfer protocol. More info on this will be available at a later date.
